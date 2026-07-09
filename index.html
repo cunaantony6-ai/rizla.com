@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelodyFlow - Streaming & Download</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+        }
+        
+        .track-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .track-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        
+        .playing {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(to right, #22d3ee, #a855f7);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+            <div class="p-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center">
+                        <i class="fa-solid fa-music text-2xl"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold tracking-tighter">MelodyFlow</h1>
+                </div>
+            </div>
+            
+            <div class="px-6 space-y-8">
+                <!-- Navegação -->
+                <nav class="space-y-1">
+                    <a href="#" onclick="navigate('home')" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 text-white font-medium">
+                        <i class="fa-solid fa-house w-5"></i>
+                        <span>Início</span>
+                    </a>
+                    <a href="#" onclick="navigate('search')" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+                        <i class="fa-solid fa-magnifying-glass w-5"></i>
+                        <span>Buscar</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+                        <i class="fa-solid fa-heart w-5"></i>
+                        <span>Favoritos</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+                        <i class="fa-solid fa-download w-5"></i>
+                        <span>Downloads</span>
+                    </a>
+                </nav>
+                
+                <!-- Playlists -->
+                <div>
+                    <div class="flex items-center justify-between px-4 mb-4">
+                        <span class="text-sm uppercase tracking-widest text-zinc-500 font-medium">Playlists</span>
+                        <button onclick="createPlaylist()" class="text-cyan-400 hover:text-cyan-300">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-1 px-2" id="playlists">
+                        <!-- JS populated -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-auto p-6">
+                <div class="glass rounded-3xl p-4 text-sm">
+                    <div class="flex gap-3">
+                        <div class="w-12 h-12 bg-zinc-700 rounded-2xl flex-shrink-0"></div>
+                        <div>
+                            <div class="font-medium">Premium</div>
+                            <div class="text-zinc-400 text-xs">Sem anúncios • Download ilimitado</div>
+                            <button onclick="upgrade()" class="mt-3 text-xs bg-white text-black px-4 py-1.5 rounded-full font-semibold">Assinar por R$9,90</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Bar -->
+            <div class="h-16 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-lg flex items-center px-8 z-10">
+                <div class="flex-1 max-w-xl">
+                    <div class="relative">
+                        <input id="searchInput" 
+                               onkeyup="if(event.key === 'Enter') searchMusic()"
+                               type="text" 
+                               placeholder="Buscar músicas, artistas ou álbuns..." 
+                               class="w-full bg-zinc-800 border border-zinc-700 rounded-full py-3 pl-12 pr-6 text-sm focus:outline-none focus:border-cyan-400 transition-colors">
+                        <i onclick="searchMusic()" class="fa-solid fa-magnifying-glass absolute left-5 top-3.5 text-zinc-400 cursor-pointer"></i>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex justify-end items-center gap-6">
+                    <div class="flex items-center gap-2 bg-zinc-800 rounded-full px-4 py-1 cursor-pointer" onclick="toggleUser()">
+                        <div class="w-7 h-7 bg-gradient-to-br from-pink-500 to-violet-500 rounded-full flex items-center justify-center text-xs font-bold">JD</div>
+                        <span class="text-sm font-medium">João Demo</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div class="flex-1 overflow-auto p-8" id="mainContent">
+                <!-- Home View -->
+                <div id="homeView">
+                    <h2 class="text-4xl font-bold mb-8">Bom dia, João 👋</h2>
+                    
+                    <!-- Trending -->
+                    <div class="mb-12">
+                        <h3 class="text-xl font-semibold mb-6 flex items-center gap-2">
+                            🔥 Em alta hoje
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" id="trendingTracks">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Recomendações -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-6">Feito para você</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" id="recommendedTracks">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="searchView" class="hidden">
+                    <h3 class="text-2xl font-semibold mb-6" id="searchTitle">Resultados para "<span id="queryText"></span>"</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="searchResults">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Player -->
+            <div class="h-24 bg-zinc-900 border-t border-zinc-800 flex items-center px-6 gap-6">
+                <!-- Now Playing -->
+                <div class="w-72 flex items-center gap-4">
+                    <div id="nowCover" class="w-14 h-14 bg-zinc-700 rounded-xl flex-shrink-0 overflow-hidden">
+                        <img src="https://picsum.photos/id/1015/200/200" class="w-full h-full object-cover" id="coverImg">
+                    </div>
+                    <div class="min-w-0">
+                        <div id="nowTitle" class="font-medium truncate">Não tocando</div>
+                        <div id="nowArtist" class="text-sm text-zinc-400 truncate">Selecione uma música</div>
+                    </div>
+                    <button onclick="toggleFavorite()" class="ml-auto text-zinc-400 hover:text-red-500">
+                        <i class="fa-solid fa-heart"></i>
+                    </button>
+                </div>
+                
+                <!-- Controls -->
+                <div class="flex-1 flex flex-col items-center gap-2">
+                    <div class="flex items-center gap-8 text-xl">
+                        <button onclick="prevTrack()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-backward"></i></button>
+                        <button onclick="togglePlay()" id="playBtn" class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <button onclick="nextTrack()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-forward"></i></button>
+                    </div>
+                    
+                    <div class="w-full max-w-md flex items-center gap-3 text-xs">
+                        <span id="currentTime">0:00</span>
+                        <div class="flex-1 h-1 bg-zinc-700 rounded-full relative cursor-pointer" onclick="seek(event)">
+                            <div id="progress" class="progress-bar w-0 rounded-full absolute top-0 left-0"></div>
+                        </div>
+                        <span id="duration">0:00</span>
+                    </div>
+                </div>
+                
+                <!-- Right side -->
+                <div class="w-72 flex justify-end items-center gap-6">
+                    <button onclick="downloadCurrent()" class="flex items-center gap-2 text-sm hover:text-cyan-400 transition">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Baixar</span>
+                    </button>
+                    
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i>
+                        <input type="range" min="0" max="100" value="80" class="w-24 accent-cyan-400">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Audio Element -->
+    <audio id="audioPlayer" ontimeupdate="updateProgress()"></audio>
+    
+    <script>
+        // Sample Music Data
+        let tracks = [
+            {
+                id: 1,
+                title: "Blinding Lights",
+                artist: "The Weeknd",
+                cover: "https://picsum.photos/id/1015/300/300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                duration: "3:20"
+            },
+            {
+                id: 2,
+                title: "Levitating",
+                artist: "Dua Lipa",
+                cover: "https://picsum.photos/id/201/300/300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+                duration: "3:38"
+            },
+            {
+                id: 3,
+                title: "Watermelon Sugar",
+                artist: "Harry Styles",
+                cover: "https://picsum.photos/id/237/300/300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+                duration: "2:54"
+            },
+            {
+                id: 4,
+                title: "Stay",
+                artist: "The Kid LAROI",
+                cover: "https://picsum.photos/id/180/300/300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+                duration: "2:21"
+            },
+            {
+                id: 5,
+                title: "Good 4 U",
+                artist: "Olivia Rodrigo",
+                cover: "https://picsum.photos/id/133/300/300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+                duration: "2:58"
+            }
+        ]
+        
+        let currentTrackIndex = 0
+        let isPlaying = false
+        let playlists = ["Favoritos", "Chill Vibes", "Festa 2026"]
+        
+        const audio = document.getElementById('audioPlayer')
+        
+        function renderTracks(containerId, trackList) {
+            const container = document.getElementById(containerId)
+            container.innerHTML = ''
+            
+            trackList.forEach((track, index) => {
+                const card = document.createElement('div')
+                card.className = `track-card bg-zinc-900 rounded-3xl overflow-hidden cursor-pointer`
+                card.innerHTML = `
+                    <div class="relative">
+                        <img src="${track.cover}" class="w-full aspect-square object-cover">
+                        <div onclick="playTrack(${track.id}); event.stopImmediatePropagation()" 
+                             class="absolute bottom-3 right-3 w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-xl">
+                            <i class="fa-solid fa-play text-black ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="font-semibold truncate">${track.title}</div>
+                        <div class="text-zinc-400 text-sm">${track.artist}</div>
+                    </div>
+                `
+                card.onclick = () => playTrack(track.id)
+                container.appendChild(card)
+            })
+        }
+        
+        function initHome() {
+            renderTracks('trendingTracks', tracks)
+            renderTracks('recommendedTracks', tracks.slice().reverse())
+            
+            // Populate playlists
+            const plContainer = document.getElementById('playlists')
+            playlists.forEach(pl => {
+                const el = document.createElement('div')
+                el.className = "px-4 py-2.5 hover:bg-white/10 rounded-2xl cursor-pointer flex items-center gap-3 text-sm"
+                el.innerHTML = `<i class="fa-solid fa-list"></i> ${pl}`
+                plContainer.appendChild(el)
+            })
+        }
+        
+        function playTrack(id) {
+            currentTrackIndex = tracks.findIndex(t => t.id === id)
+            const track = tracks[currentTrackIndex]
+            
+            document.getElementById('nowTitle').textContent = track.title
+            document.getElementById('nowArtist').textContent = track.artist
+            document.getElementById('coverImg').src = track.cover
+            
+            audio.src = track.audio
+            audio.play()
+            isPlaying = true
+            updatePlayButton()
+        }
+        
+        function togglePlay() {
+            if (!audio.src) {
+                playTrack(tracks[0].id)
+                return
+            }
+            
+            if (isPlaying) {
+                audio.pause()
+            } else {
+                audio.play()
+            }
+            isPlaying = !isPlaying
+            updatePlayButton()
+        }
+        
+        function updatePlayButton() {
+            const btn = document.getElementById('playBtn')
+            btn.innerHTML = isPlaying ? 
+                `<i class="fa-solid fa-pause"></i>` : 
+                `<i class="fa-solid fa-play"></i>`
+        }
+        
+        function updateProgress() {
+            if (!audio.duration) return
+            
+            const progress = (audio.currentTime / audio.duration) * 100
+            document.getElementById('progress').style.width = `${progress}%`
+            
+            document.getElementById('currentTime').textContent = formatTime(audio.currentTime)
+            document.getElementById('duration').textContent = formatTime(audio.duration)
+        }
+        
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60)
+            const sec = Math.floor(seconds % 60)
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`
+        }
+        
+        function seek(e) {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const pos = (e.clientX - rect.left) / rect.width
+            audio.currentTime = pos * audio.duration
+        }
+        
+        function nextTrack() {
+            currentTrackIndex = (currentTrackIndex + 1) % tracks.length
+            playTrack(tracks[currentTrackIndex].id)
+        }
+        
+        function prevTrack() {
+            currentTrackIndex = (currentTrackIndex - 1 + tracks.length) % tracks.length
+            playTrack(tracks[currentTrackIndex].id)
+        }
+        
+        function downloadCurrent() {
+            const track = tracks[currentTrackIndex]
+            if (!track) return
+            
+            const link = document.createElement('a')
+            link.href = track.audio
+            link.download = `${track.title} - ${track.artist}.mp3`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            
+            alert(`Baixando: ${track.title}... (em produção real usaria yt-dlp ou API)`)
+        }
+        
+        function searchMusic() {
+            const query = document.getElementById('searchInput').value.trim()
+            if (!query) return
+            
+            document.getElementById('homeView').classList.add('hidden')
+            const searchView = document.getElementById('searchView')
+            searchView.classList.remove('hidden')
+            
+            document.getElementById('queryText').textContent = query
+            
+            // Simulate search
+            const filtered = tracks.filter(t => 
+                t.title.toLowerCase().includes(query.toLowerCase()) || 
+                t.artist.toLowerCase().includes(query.toLowerCase())
+            )
+            
+            renderTracks('searchResults', filtered.length ? filtered : tracks)
+        }
+        
+        function navigate(view) {
+            if (view === 'home') {
+                document.getElementById('homeView').classList.remove('hidden')
+                document.getElementById('searchView').classList.add('hidden')
+            }
+        }
+        
+        function toggleFavorite() {
+            alert("Adicionado aos favoritos ❤️")
+        }
+        
+        function createPlaylist() {
+            const name = prompt("Nome da nova playlist:")
+            if (name) {
+                playlists.push(name)
+                alert(`Playlist "${name}" criada!`)
+                // Re-render playlists if needed
+            }
+        }
+        
+        function upgrade() {
+            alert("Redirecionando para página de assinatura Premium...")
+        }
+        
+        function toggleUser() {
+            alert("Perfil do usuário - Configurações")
+        }
+        
+        // Initialize App
+        window.onload = function() {
+            initHome()
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                    e.preventDefault()
+                    togglePlay()
+                }
+            })
+            
+            // Demo: Auto play first track after 1.5s
+            setTimeout(() => {
+                // playTrack(1)
+            }, 1500)
+            
+            console.log('%c🎵 MelodyFlow pronto para uso!', 'color: #22d3ee; font-size: 16px; font-weight: bold')
+        }
+    </script>
+</body>
+</html>
